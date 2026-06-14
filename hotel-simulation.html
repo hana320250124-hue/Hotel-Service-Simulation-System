@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hotel Queue Simulation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #060c18; --surface: #0f172a; --surface2: #1e293b;
+    --border: #1e293b; --text: #f1f5f9; --muted: #64748b; --sub: #475569;
+    --green: #4ade80; --blue: #60a5fa; --orange: #fb923c;
+    --red: #f87171; --yellow: #fbbf24;
+    --c0: #4ade80; --c1: #60a5fa; --c2: #fb923c;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh; padding: 20px;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+
+/* Header */
+.header { text-align: center; margin-bottom: 24px; }
+.header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.header p { color: var(–muted); font-size: 12px; margin-top: 4px; }
+
+/* Controls */
+.controls {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 12px; padding: 16px; margin-bottom: 20px;
+}
+.controls-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn {
+border: none; border-radius: 8px; padding: 8px 20px;
+font-family: ‘DM Sans’, sans-serif; font-weight: 700; font-size: 13px;
+cursor: pointer; transition: all 0.2s;
+}
+.btn-start { background: var(–green); color: #000; }
+.btn-start:disabled { background: var(–surface2); color: var(–sub); cursor: not-allowed; }
+.btn-pause {
+background: var(–surface2); color: var(–text);
+border: 1px solid var(–border);
+}
+.btn-pause:disabled { color: var(–sub); cursor: not-allowed; }
+.speed-group { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+.speed-label { color: var(–muted); font-size: 11px; }
+.btn-speed {
+background: var(–surface2); color: var(–sub);
+border: none; border-radius: 6px; padding: 4px 10px;
+font-size: 11px; cursor: pointer; transition: all 0.15s;
+}
+.btn-speed.active { background: #1e40af; color: #fff; }
+
+/* Progress */
+.progress-row { width: 100%; margin-top: 12px; }
+.progress-info { display: flex; justify-content: space-between; font-size: 10px; color: var(–muted); margin-bottom: 4px; }
+.progress-bar { background: var(–surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+.progress-fill {
+height: 100%; border-radius: 4px;
+background: linear-gradient(90deg, var(–green), var(–blue));
+transition: width 0.3s ease;
+}
+
+/* Summary */
+.summary { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.summary-card {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 10px; padding: 10px 16px; flex: 1; min-width: 100px;
+display: flex; align-items: center; gap: 10px;
+}
+.summary-icon { font-size: 18px; }
+.summary-val { font-size: 18px; font-weight: 700; line-height: 1; }
+.summary-lbl { color: var(–sub); font-size: 10px; margin-top: 2px; }
+
+/* Dept cards */
+.depts { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.dept-card {
+background: var(–surface); border: 1px solid transparent;
+border-radius: 12px; padding: 16px; flex: 1; min-width: 200px;
+position: relative; overflow: hidden; transition: border-color 0.3s;
+}
+.dept-topbar { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.dept-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.dept-icon { font-size: 20px; }
+.dept-name { font-weight: 700; font-size: 13px; }
+.dept-sub { color: var(–muted); font-size: 10px; }
+
+/* Queue dots */
+.queue-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+.queue-dots { display: flex; gap: 3px; flex-wrap: wrap; min-height: 12px; margin-bottom: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; animation: pop 0.2s ease; }
+.dot-extra { font-size: 9px; line-height: 8px; }
+@keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Servers */
+.servers { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.server-card {
+border: 1px solid var(–border); border-radius: 8px;
+padding: 6px 10px; display: flex; align-items: center; gap: 8px;
+transition: all 0.3s; min-width: 100px; background: var(–bg);
+}
+.server-led { width: 8px; height: 8px; border-radius: 50%; background: var(–surface2); transition: all 0.3s; }
+.server-id { font-size: 10px; color: var(–muted); }
+.server-status { font-size: 10px; }
+
+/* Mini stats */
+.mini-stats { display: flex; gap: 8px; }
+.mini-stat {
+background: var(–surface2); border-radius: 6px; padding: 4px 8px;
+flex: 1; text-align: center;
+}
+.mini-stat-val { font-size: 14px; font-weight: 700; }
+.mini-stat-lbl { color: var(–muted); font-size: 9px; }
+
+/* Stat bars */
+.stat-section {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 12px; padding: 16px; margin-bottom: 16px;
+}
+.section-title { color: var(–muted); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+.stat-bar { margin-bottom: 10px; }
+.stat-bar-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+.stat-bar-track { background: var(–surface2); border-radius: 4px; height: 5px; overflow: hidden; }
+.stat-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+/* Event log */
+.log-section {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 12px; padding: 16px;
+}
+.log-box {
+background: var(–bg); border: 1px solid var(–border);
+border-radius: 8px; padding: 10px; height: 160px;
+overflow-y: auto; font-family: ‘DM Mono’, monospace; font-size: 11px;
+}
+.log-empty { color: var(–surface2); text-align: center; padding-top: 55px; }
+.log-line { display: flex; gap: 6px; margin-bottom: 3px; }
+.log-dept { color: var(–sub); }
+</style>
+
+</head>
+<body>
+
+<!-- Header -->
+
+<div class="header">
+  <div style="font-size:28px;margin-bottom:4px">🏨</div>
+  <h1>Hotel Queue Simulation</h1>
+  <p>Discrete-event simulation · 50 ticks</p>
+</div>
+
+<!-- Controls -->
+
+<div class="controls">
+  <div class="controls-row">
+    <button class="btn btn-start" id="btnStart" onclick="handleStart()">▶ Start</button>
+    <button class="btn btn-pause" id="btnPause" onclick="handlePause()" disabled>⏸ Pause</button>
+    <div class="speed-group">
+      <span class="speed-label">Speed</span>
+      <button class="btn-speed" onclick="setSpeed(500,this)">0.5×</button>
+      <button class="btn-speed active" onclick="setSpeed(300,this)">1×</button>
+      <button class="btn-speed" onclick="setSpeed(150,this)">2×</button>
+      <button class="btn-speed" onclick="setSpeed(50,this)">5×</button>
+    </div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-info">
+      <span id="tickLabel">Tick 0 / 50</span>
+      <span id="statusLabel">Press Start to begin</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- Summary -->
+
+<div class="summary">
+  <div class="summary-card">
+    <span class="summary-icon">✅</span>
+    <div><div class="summary-val" id="grandServed" style="color:var(--green)">0</div><div class="summary-lbl">Total Served</div></div>
+  </div>
+  <div class="summary-card">
+    <span class="summary-icon">🚪</span>
+    <div><div class="summary-val" id="grandAbandoned" style="color:var(--red)">0</div><div class="summary-lbl">Abandoned</div></div>
+  </div>
+  <div class="summary-card">
+    <span class="summary-icon">⏱️</span>
+    <div><div class="summary-val" id="tickDisplay" style="color:var(--blue)">0 / 50</div><div class="summary-lbl">Tick</div></div>
+  </div>
+</div>
+
+<!-- Department Cards -->
+
+<div class="depts" id="deptsContainer"></div>
+
+<!-- Stat Bars -->
+
+<div class="stat-section">
+  <div class="section-title">📊 Customers Served per Department</div>
+  <div id="statBars"></div>
+</div>
+
+<!-- Event Log -->
+
+<div class="log-section">
+  <div class="section-title">📋 Event Log</div>
+  <div class="log-box" id="logBox">
+    <div class="log-empty">Press Start to begin simulation</div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────
+const SIM_TIME   = 50;
+const MAX_WAIT   = 10;
+const DEPT_NAMES   = ["Front Desk","Concierge","Restaurant"];
+const DEPT_ICONS   = ["🛎️","🔑","🍽️"];
+const DEPT_COLORS  = ["#4ade80","#60a5fa","#fb923c"];
+const DEPT_SERVERS = [2, 1, 2];
+
+// ── State ───────────────────────────────────────────────
+let depts = [], tick = 0, customerID = 1;
+let running = false, done = false;
+let intervalID = null, speed = 300;
+let logLines = [];
+
+// ── Init ────────────────────────────────────────────────
+function createDepts() {
+  return DEPT_NAMES.map((_,i) => ({
+    type: i,
+    vipQ: [], normQ: [],
+    servers: Array.from({length: DEPT_SERVERS[i]}, (_,s) => ({
+      id: s, busy: false, finishTime: 0, busyTotal: 0, current: null
+    })),
+    served: 0, abandoned: 0, ratingSum: 0
+  }));
+}
+
+function reset() {
+  depts = createDepts(); tick = 0; customerID = 1;
+  running = false; done = false; logLines = [];
+  renderAll(); updateLog(true);
+}
+
+// ── Simulation ──────────────────────────────────────────
+function step() {
+  if (tick >= SIM_TIME) {
+    running = false; done = true;
+    clearInterval(intervalID);
+    document.getElementById('btnStart').textContent = '🔄 Restart';
+    document.getElementById('btnStart').style.background = '#7c3aed';
+    document.getElementById('btnStart').style.color = '#fff';
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnPause').disabled = true;
+    document.getElementById('statusLabel').textContent = '✅ Simulation Complete';
+    return;
+  }
+  tick++;
+  const events = [];
+
+  // Spawn
+  if (Math.random() < 0.7) {
+    const c = {
+      id: customerID++,
+      dept: Math.floor(Math.random()*3),
+      vip: Math.random() < 0.2,
+      arrival: tick,
+      service: Math.floor(Math.random()*5)+1,
+      wait: 0, rating: 0
+    };
+    if (c.vip) depts[c.dept].vipQ.push(c);
+    else       depts[c.dept].normQ.push(c);
+    events.push({type:'arrive', dept:c.dept, vip:c.vip, id:c.id});
+  }
+
+  for (let d=0; d<3; d++) {
+    // Abandonment
+    const survivors = [];
+    for (const c of depts[d].normQ) {
+      if (tick - c.arrival > MAX_WAIT) {
+        depts[d].abandoned++;
+        events.push({type:'abandon', dept:d, id:c.id});
+      } else survivors.push(c);
+    }
+    depts[d].normQ = survivors;
+
+    // Servers
+    for (let s=0; s<depts[d].servers.length; s++) {
+      const srv = depts[d].servers[s];
+      // finish
+      if (srv.busy && tick >= srv.finishTime) {
+        const c = srv.current;
+        c.rating = c.wait<3 ? 5 : c.wait<6 ? 4 : c.wait<10 ? 3 : 2;
+        srv.busyTotal += c.service;
+        depts[d].served++;
+        depts[d].ratingSum += c.rating;
+        srv.busy = false; srv.current = null;
+        events.push({type:'served', dept:d, rating:c.rating});
+      }
+      // assign
+      if (!srv.busy) {
+        let c = null;
+        if (depts[d].vipQ.length)      c = depts[d].vipQ.shift();
+        else if (depts[d].normQ.length) c = depts[d].normQ.shift();
+        if (c) {
+          c.wait = tick - c.arrival;
+          srv.current = c; srv.busy = true;
+          srv.finishTime = tick + c.service;
+          events.push({type:'start', dept:d, vip:c.vip});
+        }
+      }
+    }
+  }
+
+  renderAll();
+  for (const e of events) addLogLine(e);
+}
+
+// ── Render ──────────────────────────────────────────────
+function renderAll() {
+  const pct = (tick/SIM_TIME)*100;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('tickLabel').textContent = `Tick ${tick} / ${SIM_TIME}`;
+  document.getElementById('tickDisplay').textContent = `${tick} / ${SIM_TIME}`;
+  if (running) document.getElementById('statusLabel').textContent = '🔄 Simulating...';
+
+  const gs = depts.reduce((a,d)=>a+d.served,0);
+  const ga = depts.reduce((a,d)=>a+d.abandoned,0);
+  document.getElementById('grandServed').textContent = gs;
+  document.getElementById('grandAbandoned').textContent = ga;
+
+  renderDepts();
+  renderStatBars();
+}
+
+function renderDepts() {
+  const container = document.getElementById('deptsContainer');
+  container.innerHTML = '';
+  depts.forEach((d,i) => {
+    const col = DEPT_COLORS[i];
+    const avg = d.served>0 ? (d.ratingSum/d.served).toFixed(1) : '—';
+    const card = document.createElement('div');
+    card.className = 'dept-card';
+    card.style.borderColor = col+'44';
+
+    // queue dots helper
+    const dots = (q, vip) => {
+      const color = vip ? '#fbbf24' : '#94a3b8';
+      const show = Math.min(q.length, 8);
+      let html = '';
+      for (let k=0;k<show;k++) html += `<div class="dot" style="background:${color}"></div>`;
+      if (q.length>8) html += `<span class="dot-extra" style="color:${color}">+${q.length-8}</span>`;
+      return html;
+    };
+
+    // servers
+    const srvHtml = d.servers.map(s => {
+      const ledColor = s.busy ? col : '#334155';
+      const shadow   = s.busy ? `0 0 8px ${col}` : 'none';
+      const bg       = s.busy ? col+'22' : 'var(--bg)';
+      const border   = s.busy ? col : 'var(--border)';
+      const status   = s.busy ? (s.current?.vip ? '👑 VIP' : '👤 Serving') : 'Idle';
+      const statusColor = s.busy ? col : 'var(--sub)';
+      return `
+        <div class="server-card" style="background:${bg};border-color:${border}">
+          <div class="server-led" style="background:${ledColor};box-shadow:${shadow}"></div>
+          <div>
+            <div class="server-id">Server ${s.id+1}</div>
+            <div class="server-status" style="color:${statusColor}">${status}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="dept-topbar" style="background:${col}"></div>
+      <div class="dept-head">
+        <span class="dept-icon">${DEPT_ICONS[i]}</span>
+        <div>
+          <div class="dept-name">${DEPT_NAMES[i]}</div>
+          <div class="dept-sub">${d.servers.length} server${d.servers.length>1?'s':''}</div>
+        </div>
+      </div>
+      <div class="queue-label" style="color:#fbbf24">👑 VIP (${d.vipQ.length})</div>
+      <div class="queue-dots">${dots(d.vipQ,true)}</div>
+      <div class="queue-label" style="color:#94a3b8">👤 Normal (${d.normQ.length})</div>
+      <div class="queue-dots">${dots(d.normQ,false)}</div>
+      <div class="servers">${srvHtml}</div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="mini-stat-val" style="color:${col}">${d.served}</div><div class="mini-stat-lbl">served</div></div>
+        <div class="mini-stat"><div class="mini-stat-val" style="color:var(--red)">${d.abandoned}</div><div class="mini-stat-lbl">left</div></div>
+        <div class="mini-stat"><div class="mini-stat-val" style="color:var(--yellow)">${avg}</div><div class="mini-stat-lbl">rating</div></div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function renderStatBars() {
+  const maxServed = Math.max(1, ...depts.map(d=>d.served));
+  document.getElementById('statBars').innerHTML = depts.map((d,i)=>{
+    const pct = (d.served/maxServed)*100;
+    return `
+      <div class="stat-bar">
+        <div class="stat-bar-row">
+          <span style="color:var(--muted)">${DEPT_NAMES[i]}</span>
+          <span style="color:${DEPT_COLORS[i]};font-weight:700">${d.served}</span>
+        </div>
+        <div class="stat-bar-track">
+          <div class="stat-bar-fill" style="width:${pct}%;background:${DEPT_COLORS[i]}"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Log ─────────────────────────────────────────────────
+function addLogLine(e) {
+  const col = e.type==='arrive' ? (e.vip?'#fbbf24':'#94a3b8')
+            : e.type==='served' ? '#4ade80'
+            : e.type==='abandon' ? '#f87171'
+            : DEPT_COLORS[e.dept];
+  const icon = e.type==='arrive' ? (e.vip?'👑':'🚶')
+             : e.type==='served' ? '✅'
+             : e.type==='abandon' ? '🚪' : '⚡';
+  const msg  = e.type==='arrive'  ? `Customer #${e.id} arrived${e.vip?' (VIP)':''}`
+             : e.type==='served'  ? `Service done · ${e.rating}★`
+             : e.type==='abandon' ? `Customer #${e.id} left (too long)`
+             : `Service started${e.vip?' (VIP)':''}`;
+
+  logLines.push({col, icon, dept: DEPT_NAMES[e.dept], msg});
+  if (logLines.length > 100) logLines.shift();
+  updateLog();
+}
+
+function updateLog(clear=false) {
+  const box = document.getElementById('logBox');
+  if (clear) { box.innerHTML = '<div class="log-empty">Press Start to begin simulation</div>'; return; }
+  box.innerHTML = logLines.map(l =>
+    `<div class="log-line" style="color:${l.col}">
+      <span>${l.icon}</span>
+      <span class="log-dept">[${l.dept}]</span>
+      <span>${l.msg}</span>
+    </div>`
+  ).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── Controls ─────────────────────────────────────────────
+function handleStart() {
+  if (done) reset();
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnPause').disabled = false;
+  document.getElementById('btnStart').textContent = '⏳ Running...';
+  document.getElementById('statusLabel').textContent = '🔄 Simulating...';
+  running = true;
+  intervalID = setInterval(step, speed);
+}
+
+function handlePause() {
+  if (running) {
+    running = false; clearInterval(intervalID);
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnStart').textContent = '▶ Resume';
+    document.getElementById('btnStart').style.background = 'var(--green)';
+    document.getElementById('btnStart').style.color = '#000';
+    document.getElementById('btnPause').disabled = true;
+    document.getElementById('statusLabel').textContent = '⏸ Paused';
+  }
+}
+
+function setSpeed(s, btn) {
+  speed = s;
+  document.querySelectorAll('.btn-speed').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (running) { clearInterval(intervalID); intervalID = setInterval(step, speed); }
+}
+
+// ── Boot ─────────────────────────────────────────────────
+reset();
+</script>
+
+</body>
+</html>
